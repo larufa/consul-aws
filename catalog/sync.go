@@ -12,7 +12,7 @@ import (
 )
 
 // Sync aws->consul and vice versa.
-func Sync(toAWS, toConsul bool, namespaceID, consulPrefix, awsPrefix, awsPullInterval string, awsDNSTTL int64, stale bool, awsClient *sd.ServiceDiscovery, consulClient *api.Client, stop, stopped chan struct{}) {
+func Sync(toAWS, toConsul bool, namespaceID, consulPrefix, awsPrefix, awsPullInterval string, awsDNSRecordType sd.RecordType, awsDNSTTL int64, stale bool, awsClient *sd.ServiceDiscovery, consulClient *api.Client, stop, stopped chan struct{}) {
 	defer close(stopped)
 	log := hclog.Default().Named("sync")
 	consul := consul{
@@ -30,14 +30,15 @@ func Sync(toAWS, toConsul bool, namespaceID, consulPrefix, awsPrefix, awsPullInt
 		return
 	}
 	aws := aws{
-		client:       awsClient,
-		log:          hclog.Default().Named("aws"),
-		trigger:      make(chan bool, 1),
-		consulPrefix: consulPrefix,
-		awsPrefix:    awsPrefix,
-		toConsul:     toConsul,
-		pullInterval: pullInterval,
-		dnsTTL:       awsDNSTTL,
+		client:        awsClient,
+		log:           hclog.Default().Named("aws"),
+		trigger:       make(chan bool, 1),
+		consulPrefix:  consulPrefix,
+		awsPrefix:     awsPrefix,
+		toConsul:      toConsul,
+		pullInterval:  pullInterval,
+		dnsRecordType: awsDNSRecordType,
+		dnsTTL:        awsDNSTTL,
 	}
 
 	err = aws.setupNamespace(namespaceID)

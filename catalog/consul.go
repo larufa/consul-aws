@@ -288,6 +288,7 @@ func (c *consul) create(services map[string]service) int {
 	wg := sync.WaitGroup{}
 	count := 0
 	for k, s := range services {
+		k := k
 		if s.fromConsul {
 			continue
 		}

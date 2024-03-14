@@ -18,6 +18,7 @@ import (
 )
 
 const DefaultPollInterval = "30s"
+const DefaultDNSRecordType = "A"
 
 // Command is the command for syncing the A
 type Command struct {
@@ -27,10 +28,12 @@ type Command struct {
 	http                          *flags.HTTPFlags
 	flagToConsul                  bool
 	flagToAWS                     bool
+	flagRegion                    string
 	flagAWSNamespaceID            string
 	flagAWSServicePrefix          string
 	flagAWSDeprecatedPullInterval string
 	flagAWSPollInterval           string
+	flagAWSDNSRecordType          string
 	flagAWSDNSTTL                 int64
 	flagConsulServicePrefix       string
 	flagConsulDomain              string
@@ -45,6 +48,8 @@ func (c *Command) init() {
 		"If true, AWS services will be synced to Consul. (Defaults to false)")
 	c.flags.BoolVar(&c.flagToAWS, "to-aws", false,
 		"If true, Consul services will be synced to AWS. (Defaults to false)")
+	c.flags.StringVar(&c.flagRegion, "region",
+		"", "The AWS region where the cloudmap namespace is located.")
 	c.flags.StringVar(&c.flagAWSNamespaceID, "aws-namespace-id",
 		"", "The AWS namespace to sync with Consul services.")
 	c.flags.StringVar(&c.flagAWSServicePrefix, "aws-service-prefix",
@@ -63,6 +68,9 @@ func (c *Command) init() {
 			"Accepts a sequence of decimal numbers, each with optional "+
 			"fraction and a unit suffix, such as \"300ms\", \"10s\", \"1.5m\". "+
 			"Defaults to 30s)")
+	c.flags.StringVar(&c.flagAWSDNSRecordType, "aws-dns-record-type",
+		DefaultDNSRecordType, "DNS record type for services created in AWS CloudMap, "+
+			"\"A\", or \"SRV\" (Defaults to A)")
 	c.flags.Int64Var(&c.flagAWSDNSTTL, "aws-dns-ttl",
 		60, "DNS TTL for services created in AWS CloudMap in seconds. (Defaults to 60)")
 
@@ -85,7 +93,7 @@ func (c *Command) Run(args []string) int {
 		c.UI.Error("Please provide -aws-namespace-id.")
 		return 1
 	}
-	config, err := subcommand.AWSConfig()
+	config, err := subcommand.AWSConfig(c.flagRegion)
 	if err != nil {
 		c.UI.Error(fmt.Sprintf("Error retrieving AWS session: %s", err))
 		return 1
@@ -95,6 +103,12 @@ func (c *Command) Run(args []string) int {
 	consulClient, err := c.http.APIClient()
 	if err != nil {
 		c.UI.Error(fmt.Sprintf("Error connecting to Consul agent: %s", err))
+		return 1
+	}
+
+	dnsRecordType, err := c.getDNSRecordTypeWithDefaultA()
+	if err != nil {
+		c.UI.Error(err.Error())
 		return 1
 	}
 
@@ -109,7 +123,7 @@ func (c *Command) Run(args []string) int {
 	go catalog.Sync(
 		c.flagToAWS, c.flagToConsul, c.flagAWSNamespaceID,
 		c.flagConsulServicePrefix, c.flagAWSServicePrefix,
-		pollInterval, c.flagAWSDNSTTL, c.getStaleWithDefaultTrue(),
+		pollInterval, dnsRecordType, c.flagAWSDNSTTL, c.getStaleWithDefaultTrue(),
 		awsClient, consulClient,
 		stop, stopped,
 	)
@@ -126,6 +140,17 @@ func (c *Command) Run(args []string) int {
 		<-stopped
 	}
 	return 0
+}
+
+func (c *Command) getDNSRecordTypeWithDefaultA() (sd.RecordType, error) {
+	switch c.flagAWSDNSRecordType {
+	case "A":
+		return sd.RecordTypeA, nil
+	case "SRV":
+		return sd.RecordTypeSrv, nil
+	default:
+		return "", fmt.Errorf("DNS Record Type should be \"A\" or \"SRV\".")
+	}
 }
 
 func (c *Command) getStaleWithDefaultTrue() bool {

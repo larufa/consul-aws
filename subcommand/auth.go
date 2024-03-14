@@ -8,6 +8,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 )
 
-func AWSConfig() (aws.Config, error) {
-	return external.LoadDefaultAWSConfig()
+func AWSConfig(region string) (aws.Config, error) {
+	cfg, err := external.LoadDefaultAWSConfig()
+	if err != nil {
+		return aws.Config{}, err
+	}
+	cfg.Region = region
+	return cfg, nil
 }

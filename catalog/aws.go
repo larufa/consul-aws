@@ -31,17 +31,18 @@ type namespace struct {
 }
 
 type aws struct {
-	lock         sync.RWMutex
-	client       *sd.ServiceDiscovery
-	log          hclog.Logger
-	namespace    namespace
-	services     map[string]service
-	trigger      chan bool
-	consulPrefix string
-	awsPrefix    string
-	toConsul     bool
-	pullInterval time.Duration
-	dnsTTL       int64
+	lock          sync.RWMutex
+	client        *sd.ServiceDiscovery
+	log           hclog.Logger
+	namespace     namespace
+	services      map[string]service
+	trigger       chan bool
+	consulPrefix  string
+	awsPrefix     string
+	toConsul      bool
+	pullInterval  time.Duration
+	dnsRecordType sd.RecordType
+	dnsTTL        int64
 }
 
 var awsServiceDescription = "Imported from Consul"
@@ -338,7 +339,7 @@ func (a *aws) create(services map[string]service) int {
 			if !a.namespace.isHTTP {
 				input.DnsConfig = &sd.DnsConfig{
 					DnsRecords: []sd.DnsRecord{
-						{TTL: &a.dnsTTL, Type: sd.RecordTypeSrv},
+						{TTL: &a.dnsTTL, Type: a.dnsRecordType},
 					},
 				}
 			}
@@ -349,6 +350,8 @@ func (a *aws) create(services map[string]service) int {
 					switch err.Code() {
 					case sd.ErrCodeServiceAlreadyExists:
 						a.log.Info("service already exists", "name", name)
+					default:
+						a.log.Error("cannot create services in AWS", "error", err.Error())
 					}
 				} else {
 					a.log.Error("cannot create services in AWS", "error", err.Error())

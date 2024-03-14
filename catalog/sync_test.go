@@ -62,7 +62,7 @@ func runSyncTest(t *testing.T, namespaceID string) {
 	go Sync(
 		true, true, namespaceID,
 		"consul_", "aws_",
-		"0", 0, true,
+		"0", "A", 0, true,
 		a, c,
 		stop, stopped,
 	)
