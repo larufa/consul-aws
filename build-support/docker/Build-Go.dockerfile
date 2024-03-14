@@ -1,7 +1,7 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: MPL-2.0
 
-ARG GOLANG_VERSION=1.14.1
+ARG GOLANG_VERSION=1.21
 FROM golang:${GOLANG_VERSION}
 
 ARG GOTOOLS="github.com/magiconair/vendorfmt/cmd/vendorfmt \
@@ -11,6 +11,6 @@ ARG GOTOOLS="github.com/magiconair/vendorfmt/cmd/vendorfmt \
    github.com/axw/gocov/gocov \
    gopkg.in/matm/v1/gocov-html"
 
-RUN go get -u -v ${GOTOOLS}
+RUN for p in ${GOTOOLS}; do go install ${p}@latest; done
 
 WORKDIR /go-build
